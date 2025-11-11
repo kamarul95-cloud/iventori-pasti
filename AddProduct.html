@@ -1,0 +1,71 @@
+<div id="add-product-view">
+    <h2>➕ Tambah Produk Baharu</h2>
+    <p>Data yang dihantar dari borang ini akan disimpan ke Google Sheet anda melalui Apps Script API.</p>
+    
+    <form id="addProductForm" onsubmit="handleFormSubmit(event)">
+        
+        <label for="sku">SKU:</label>
+        <input type="text" id="sku" name="sku" required><br><br>
+        
+        <label for="name">Nama Produk:</label>
+        <input type="text" id="name" name="name" required><br><br>
+        
+        <label for="quantity">Kuantiti:</label>
+        <input type="number" id="quantity" name="quantity" required><br><br>
+        
+        <label for="cost">Harga Belian (RM):</label>
+        <input type="number" step="0.01" id="cost" name="cost" required><br><br>
+        
+        <label for="price">Harga Jualan (RM):</label>
+        <input type="number" step="0.01" id="price" name="price" required><br><br>
+        
+        <button type="submit" style="background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">Simpan Produk</button>
+        <div id="form-status" style="margin-top: 15px;"></div>
+    </form>
+</div>
+
+<script>
+    // Fungsi ini dipanggil apabila butang "Simpan Produk" ditekan
+    function handleFormSubmit(event) {
+        event.preventDefault(); // Hentikan borang daripada refresh laman
+        
+        const form = document.getElementById('addProductForm');
+        const statusDiv = document.getElementById('form-status');
+        
+        // 1. Kumpulkan data dari borang
+        const productData = {
+            sku: form.sku.value,
+            name: form.name.value,
+            quantity: parseInt(form.quantity.value),
+            cost: parseFloat(form.cost.value),
+            price: parseFloat(form.price.value)
+        };
+
+        statusDiv.innerHTML = 'Menyimpan data ke Google Sheet...';
+        
+        // 2. Hantar data ke fungsi Apps Script (GAS)
+        google.script.run
+            .withSuccessHandler(function(response) {
+                // Berjaya disimpan
+                statusDiv.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${response}</span>`;
+                form.reset(); // Kosongkan borang
+            })
+            .withFailureHandler(function(error) {
+                // Gagal disimpan
+                statusDiv.innerHTML = `<span style="color: red; font-weight: bold;">❌ Ralat: ${error.message}</span>`;
+                console.error("Ralat simpan:", error);
+            })
+            .saveProduct(productData); // Panggil fungsi di Code.gs
+    }
+    
+    // Fungsi permulaan (dipanggil oleh Index.html)
+    function initializeAddProductForm() {
+        console.log("Modul AddProduct diaktifkan.");
+    }
+</script>
+
+<style>
+/* CSS Ringkas Borang */
+#addProductForm label { display: inline-block; width: 150px; text-align: right; margin-right: 10px; }
+#addProductForm input[type="text"], #addProductForm input[type="number"] { padding: 8px; margin-bottom: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
+</style>

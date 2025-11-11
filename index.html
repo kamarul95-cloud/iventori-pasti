@@ -1,54 +1,326 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Inventory Manager GitHub</title>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Inventori Tab Bersepadu</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-      /* CSS Rangka Anda dikekalkan */
-      body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
-      #sidebar { width: 200px; height: 100vh; background: #2c3e50; color: white; padding-top: 20px; float: left; }
-      .menu-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.3s; }
-      .menu-item:hover { background: #34495e; }
-      #main-area { margin-left: 200px; padding: 30px; }
+        /* CSS Rangka */
+        body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
+        #sidebar { width: 200px; height: 100vh; background: #2c3e50; color: white; padding-top: 20px; float: left; }
+        .menu-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.3s; }
+        .menu-item:hover, .menu-item.active { background: #34495e; }
+        #main-area { margin-left: 200px; padding: 30px; }
+        #main-area h2 { color: #333; }
+        
+        /* CSS Content View (Tab) */
+        .content-view { display: none; }
+        .content-view.active { display: block; }
+
+        /* CSS Stok */
+        #stock-items-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        #stock-items-view th, #stock-items-view td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        #stock-items-view th { background-color: #ecf0f1; }
+        #stock-items-view .low-stock { background-color: #fce7e7; color: #c0392b; font-weight: bold; }
+        .btn-action { padding: 5px 10px; margin-right: 5px; border: none; cursor: pointer; border-radius: 3px;}
+        .btn-action.edit { background-color: #3498db; color: white; }
+        .btn-action.delete { background-color: #e74c3c; color: white; }
+
+        /* CSS Add Product Form */
+        #addProductForm label { display: inline-block; width: 150px; text-align: right; margin-right: 10px; }
+        #addProductForm input[type="text"], #addProductForm input[type="number"] { padding: 8px; margin-bottom: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
+        #form-status { margin-top: 15px; font-weight: bold; }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+
     <div id="sidebar">
-      <div style="text-align: center; padding-bottom: 20px; font-size: 1.2em; font-weight: bold;">Inventory Manager</div>
-      <div class="menu-item" onclick="loadContent('Dashboard')">🏠 Dashboard</div>
-      <div class="menu-item" onclick="loadContent('StockItems')">📦 Stock Items</div>
-      <div class="menu-item" onclick="loadContent('AddProduct')">➕ Tambah Produk</div>
-      <div class="menu-item" onclick="loadContent('Reports')">📊 Laporan</div>
+        <div style="text-align: center; padding-bottom: 20px; font-size: 1.2em; font-weight: bold;">Inventory Manager</div>
+        <div id="nav-dashboard" class="menu-item active" onclick="showView('dashboard-view', this)">🏠 Dashboard</div>
+        <div id="nav-stock" class="menu-item" onclick="showView('stock-view', this)">📦 Stock Items</div>
+        <div id="nav-add" class="menu-item" onclick="showView('add-product-view', this)">➕ Tambah Produk</div>
+        <div id="nav-reports" class="menu-item" onclick="showView('reports-view', this)">📊 Laporan</div>
     </div>
     
     <div id="main-area">
-      <div id="content"> 
+        <div id="dashboard-view" class="content-view active">
+            <h2>🏠 Dashboard Utama</h2>
+            <p>Klik **Stock Items** untuk memuatkan data dari Google Sheet anda.</p>
+        </div>
+
+        <div id="stock-view" class="content-view">
+            <div id="stock-items-view">
+                <h2>📦 Senarai Stok Produk</h2>
+                <button onclick="prepareAddForm()" style="float: right; margin-bottom: 10px; background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">+ Tambah Produk</button>
+                <div id="product-table-container">
+                    <p>Memuatkan data inventori...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="add-product-view" class="content-view">
+            <h2 id="form-title">➕ Tambah Produk Baharu</h2>
+            <form id="addProductForm" onsubmit="handleFormSubmit(event)">
+                <input type="hidden" id="form-action" value="addProduct">
+                
+                <label for="sku">SKU:</label>
+                <input type="text" id="sku" name="sku" required><br><br>
+                
+                <label for="name">Nama Produk:</label>
+                <input type="text" id="name" name="name" required><br><br>
+
+                <label for="quantity">Kuantiti:</label>
+                <input type="number" id="quantity" name="quantity" required><br><br>
+
+                <label for="cost">Harga Belian (RM):</label>
+                <input type="number" step="0.01" id="cost" name="cost" required><br><br>
+                
+                <label for="price">Harga Jualan (RM):</label>
+                <input type="number" step="0.01" id="price" name="price" required><br><br>
+                
+                <button type="submit" id="form-submit-btn" style="background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">Simpan Produk</button>
+                <div id="form-status"></div>
+            </form>
+        </div>
+        
+        <div id="reports-view" class="content-view">
+            <h2>📊 Laporan</h2>
+            <p>Paparan ringkas untuk modul Laporan.</p>
         </div>
     </div>
 
     <script>
-      function loadContent(pageName) {
-        const mainContentDiv = document.getElementById('content');
-        mainContentDiv.innerHTML = `<h2>Memuatkan ${pageName}...</h2>`;
+        // ===============================================
+        // TETAPAN API DAN DATA
+        // ===============================================
+
+        // *** WAJIB PASTIKAN URL INI ADALAH URL GAS ANDA YANG TELAH DI DEPLOY SEBAGAI 'Anyone' ***
+        const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzDSHsHcinidtRwIpIHVXmPQCRYC4pNYKlBEwhCisOZqRGVa4FXKaiPa-1ObOgV5Vzi/exec'; 
+
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
         
-        fetch(`${pageName}.html`)
-          .then(response => {
-            if (!response.ok) throw new Error(`Gagal memuatkan ${pageName}.html.`);
-            return response.text();
-          })
-          .then(html => {
-            mainContentDiv.innerHTML = html;
+        let allProductData = []; // Menyimpan data CSV untuk fungsi Edit
+
+        // ===============================================
+        // FUNGSI NAVIGASI
+        // ===============================================
+
+        function showView(viewId, menuItem) {
+            document.querySelectorAll('.content-view').forEach(view => view.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            if (menuItem) {
+                menuItem.classList.add('active');
+            }
+
+            if (viewId === 'stock-view') {
+                loadStockData(); // Muat semula data setiap kali tab Stok dilihat
+            }
+        }
+
+        // ===============================================
+        // FUNGSI BACA DATA (READ)
+        // ===============================================
+
+        function loadStockData() {
+            const container = document.getElementById('product-table-container');
+            container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
+
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: false, 
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let data = results.data;
+                    
+                    // Penapis Kuat (Membuang SEMUA header/baris kotor - mencari SKU yang bermula dengan 'P')
+                    allProductData = data.filter(row => {
+                        return row.length > 1 && row[1] && row[1].startsWith('P');
+                    });
+
+                    displayProducts(allProductData);
+                },
+                error: function(error) {
+                    container.innerHTML = `<p style="color: red;">❌ Ralat Pemuatan Data: ${error.message}</p>`;
+                }
+            });
+        }
+
+        function displayProducts(data) {
+            const container = document.getElementById('product-table-container');
+            if (!data || data.length === 0) {
+                container.innerHTML = `<p style="color: red;">❌ Tiada data produk ditemui.</p>`;
+                return;
+            }
             
-            if (pageName === 'StockItems' && typeof loadStockData === 'function') loadStockData();
-            if (pageName === 'AddProduct' && typeof initializeAddProductForm === 'function') initializeAddProductForm();
-          })
-          .catch(error => {
-            console.error("Ralat Memuatkan Modul:", error);
-            mainContentDiv.innerHTML = `<p style="color: red;">Ralat: ${error.message}</p>`;
-          });
-      }
-      
-      loadContent('Dashboard');
+            const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
+            let html = '<table><thead><tr>';
+            headers.forEach(h => html += `<th>${h}</th>`);
+            html += '</tr></thead><tbody>';
+
+            data.forEach(row => {
+                // Row length adalah 6 (Baris, SKU, Nama, Kuantiti, Kos, Harga Jualan)
+                if (row.length < 6) return; 
+
+                const productSku = row[1] || ''; // index 1 = SKU
+                const currentQuantity = parseInt(row[3]) || 0; // index 3 = Kuantiti
+                const rowClass = currentQuantity < 10 ? 'low-stock' : ''; 
+                const skuString = JSON.stringify(productSku);
+                
+                // Hantar keseluruhan 'row' (data array) ke fungsi edit
+                const rowString = JSON.stringify(row);
+
+                html += `<tr class="${rowClass}">`;
+                
+                for (let i = 1; i <= 5; i++) { // Mula dari 1 (SKU) hingga 5 (Harga Jualan)
+                    html += `<td>${row[i] || ''}</td>`;
+                }
+                
+                html += `<td>
+                            <button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
+                            <button onclick='deleteItem(${skuString})' class="btn-action delete">Hapus</button>
+                        </td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html; 
+        }
+        
+        // ===============================================
+        // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE)
+        // ===============================================
+
+        // Sediakan borang untuk 'Tambah Produk'
+        function prepareAddForm() {
+            document.getElementById('form-title').innerText = '➕ Tambah Produk Baharu';
+            document.getElementById('addProductForm').reset();
+            document.getElementById('form-action').value = 'addProduct';
+            document.getElementById('sku').disabled = false; // Benarkan SKU diisi
+            document.getElementById('form-submit-btn').innerText = 'Simpan Produk';
+            document.getElementById('form-status').innerHTML = '';
+            showView('add-product-view', document.getElementById('nav-add'));
+        }
+
+        // Sediakan borang untuk 'Edit Produk'
+        function editItem(rowData) {
+            document.getElementById('form-title').innerText = '✏️ Kemaskini Produk';
+            document.getElementById('addProductForm').reset();
+            document.getElementById('form-action').value = 'editProduct';
+            
+            // Isi borang dengan data dari 'rowData' (berdasarkan CSV kotor)
+            document.getElementById('sku').value = rowData[1]; // SKU
+            document.getElementById('sku').disabled = true; // SKU tidak boleh diubah
+            document.getElementById('name').value = rowData[2]; // Nama Produk
+            document.getElementById('quantity').value = rowData[3]; // Kuantiti
+            document.getElementById('cost').value = rowData[4]; // Harga Belian
+            document.getElementById('price').value = rowData[5]; // Harga Jualan
+            
+            document.getElementById('form-submit-btn').innerText = 'Kemaskini Produk';
+            document.getElementById('form-status').innerHTML = '';
+            showView('add-product-view', document.getElementById('nav-add'));
+        }
+
+        // Padam item
+        async function deleteItem(sku) {
+            if (!confirm(`Anda pasti mahu memadam produk ${sku}?`)) {
+                return;
+            }
+
+            const payload = {
+                action: 'deleteProduct',
+                sku: sku
+            };
+
+            try {
+                const response = await fetch(GAS_WRITE_API_URL, {
+                    method: 'POST',
+                    // Mode 'cors' dibuang kerana ia boleh menyebabkan ralat 'Failed to fetch'
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Pastikan response.ok adalah true (status 200) sebelum cuba parse JSON
+                if (!response.ok) {
+                    throw new Error(`Ralat HTTP: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    alert(result.message);
+                    loadStockData(); // Muat semula jadual
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                alert(`Ralat memadam data: ${error.message}`);
+            }
+        }
+
+        // Menghantar data (Tambah atau Edit)
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const form = document.getElementById('addProductForm');
+            const statusDiv = document.getElementById('form-status');
+            const action = document.getElementById('form-action').value;
+            
+            const productData = {
+                sku: form.sku.value,
+                name: form.name.value,
+                quantity: parseInt(form.quantity.value),
+                cost: parseFloat(form.cost.value),
+                price: parseFloat(form.price.value)
+            };
+
+            const payload = {
+                action: action, // 'addProduct' or 'editProduct'
+                data: productData
+            };
+            
+            statusDiv.innerHTML = 'Menghantar data ke API...';
+            
+            try {
+                const response = await fetch(GAS_WRITE_API_URL, {
+                    method: 'POST',
+                    // Mode 'cors' dibuang
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Cek status HTTP sebelum cuba parse JSON
+                if (!response.ok) {
+                    // Ini akan menangkap 401/403 (Unauthorized/Forbidden)
+                    throw new Error(`Ralat HTTP: ${response.status}. Pastikan Apps Script anda di-deploy sebagai 'Anyone'.`);
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    statusDiv.innerHTML = `<span style="color: green;">✅ ${result.message}</span>`;
+                    form.reset();
+                    // Selepas berjaya, kembali ke senarai stok
+                    setTimeout(() => {
+                        showView('stock-view', document.getElementById('nav-stock'));
+                    }, 1000);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${error.message}</span>`;
+            }
+        }
+        
+        // ===============================================
+        // INITIALIZATION
+        // ===============================================
+        
+        window.onload = function() {
+            showView('dashboard-view', document.getElementById('nav-dashboard')); 
+        };
+
     </script>
-  </body>
+</body>
 </html>

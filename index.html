@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inventory Manager GitHub</title>
+    <base target="_top">
+    <style>
+      body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
+      #sidebar { width: 200px; height: 100vh; background: #2c3e50; color: white; padding-top: 20px; float: left; }
+      .menu-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.3s; }
+      .menu-item:hover { background: #34495e; }
+      #main-area { margin-left: 200px; padding: 30px; }
+      #content h2 { color: #333; }
+    </style>
+  </head>
+  <body>
+
+    <div id="sidebar">
+      <div style="text-align: center; padding-bottom: 20px; font-size: 1.2em; font-weight: bold;">Inventory Manager</div>
+      <div class="menu-item" onclick="loadContent('Dashboard')">🏠 Dashboard</div>
+      <div class="menu-item" onclick="loadContent('StockItems')">📦 Stock Items</div>
+      <div class="menu-item" onclick="loadContent('AddProduct')">➕ Tambah Produk</div>
+      <div class="menu-item" onclick="loadContent('Reports')">📊 Laporan</div>
+    </div>
+    
+    <div id="main-area">
+      <div id="content"> 
+        </div>
+    </div>
+
+    <script>
+      function loadContent(pageName) {
+        const mainContentDiv = document.getElementById('content');
+        if (!mainContentDiv) return;
+
+        mainContentDiv.innerHTML = `<h2>Memuatkan ${pageName}...</h2>`;
+        
+        // Menggunakan Fetch API untuk memuatkan fail HTML secara modular
+        fetch(`${pageName}.html`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Gagal memuatkan ${pageName}.html. Status: ${response.status}`);
+            }
+            return response.text();
+          })
+          .then(html => {
+            mainContentDiv.innerHTML = html;
+            
+            // Panggil fungsi permulaan selepas HTML disuntik
+            if (pageName === 'StockItems' && typeof loadStockData === 'function') {
+                loadStockData();
+            }
+            if (pageName === 'AddProduct' && typeof initializeAddProductForm === 'function') {
+                // Diperlukan untuk modul penambahan
+                initializeAddProductForm(); 
+            }
+          })
+          .catch(error => {
+            console.error("Ralat Memuatkan Modul:", error);
+            mainContentDiv.innerHTML = `<p style="color: red;">Ralat: Gagal memuatkan modul. Sila semak struktur fail GitHub.</p>`;
+          });
+      }
+      
+      // Muatkan Dashboard secara automatik
+      loadContent('Dashboard');
+    </script>
+  </body>
+</html>

@@ -1,75 +1,85 @@
 <div id="stock-items-view">
-  <h2>📦 Senarai Stok Produk</h2>
-  <button onclick="loadContent('AddProduct')" style="float: right; margin-bottom: 10px; background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">+ Tambah Produk</button>
-  
-  <div id="product-table-container">
-    <p>Memuatkan data inventori...</p>
-  </div>
+  <h2>📦 Senarai Stok Produk</h2>
+  <button onclick="loadContent('AddProduct')" style="float: right; margin-bottom: 10px; background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">+ Tambah Produk</button>
+  
+  <div id="product-table-container">
+    <p>Memuatkan data inventori...</p>
+  </div>
 </div>
 
 <script>
-  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
 
-  function parseCSV(csvText) {
-      const rows = csvText.trim().split('\n');
-      return rows.map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, '')));
-  }
-
-  async function loadStockData() {
-    try {
-      const response = await fetch(CSV_URL);
-      if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
-      
-      let data = parseCSV(await response.text());
-      if (data.length > 0) data.shift();
-
-      displayProducts(data);
-    } catch (error) {
-      document.getElementById('product-table-container').innerHTML = 
-          `<p style="color: red;">Ralat: Gagal memuatkan data dari CSV. ${error.message}</p>`;
-    }
-  }
-
-  function displayProducts(data) {
-    // ... (Logik displayProducts anda) ...
+  // Fungsi pemuat data telah diubah untuk menggunakan PapaParse
+  function loadStockData() {
     const container = document.getElementById('product-table-container');
-    // ... (Pembinaan Jadual) ...
-    
-    // (Kod displayProducts penuh anda seperti dalam jawapan terdahulu, diletakkan di sini)
-    const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
-    let html = '<table><thead><tr>';
-    headers.forEach(h => html += `<th>${h}</th>`);
-    html += '</tr></thead><tbody>';
+    container.innerHTML = `<p>Memuatkan data inventori melalui PapaParse...</p>`;
 
-    data.forEach(row => {
-      const productSku = row[0] ? row[0].toString().trim() : ''; 
-      const currentQuantity = parseInt(row[2]) || 0; 
-      const rowClass = currentQuantity < 10 ? 'low-stock' : ''; 
-      
-      html += `<tr class="${rowClass}">`;
-      row.forEach(cell => html += `<td>${cell !== null && cell !== undefined ? cell : ''}</td>`);
-      
-      const skuString = JSON.stringify(productSku);
-      
-      html += `<td>
-                <button onclick="editItem(${skuString})" class="btn-action edit">Edit</button>
-                <button onclick="deleteItem(${skuString})" class="btn-action delete">Hapus</button>
-              </td>`;
-      html += '</tr>';
+    // PapaParse akan memuat turun (fetch) dan parse data
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: false, // Kita masih mahu array 2D, bukan array of objects
+      skipEmptyLines: true,
+      complete: function(results) {
+        let data = results.data;
+        
+        // Buang baris header pertama
+        if (data.length > 0) {
+            data.shift();
+        }
+
+        displayProducts(data);
+      },
+      error: function(error) {
+        container.innerHTML = `<p style="color: red;">Ralat PapaParse: Gagal memuatkan data. ${error.message}</p>`;
+      }
     });
+  }
 
-    html += '</tbody></table>';
-    container.innerHTML = html; 
-  }
-  
-  // Fungsi edit/delete placeholder
-  function editItem(sku) { console.log('Edit item:', sku); alert('Edit ' + sku + ' belum berfungsi lagi.'); }
-  function deleteItem(sku) { console.log('Hapus item:', sku); alert('Hapus ' + sku + ' belum berfungsi lagi.'); }
+  function displayProducts(data) {
+    const container = document.getElementById('product-table-container');
+    if (!data || data.length === 0) {
+        container.innerHTML = `<p style="color: red;">Tiada data produk ditemui.</p>`;
+        return;
+    }
+    
+    const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
+    let html = '<table><thead><tr>';
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += '</tr></thead><tbody>';
+
+    data.forEach(row => {
+      // Pastikan array baris mempunyai sekurang-kurangnya 5 elemen untuk elak ralat index
+      if (row.length < 5) return; 
+
+      const productSku = row[0] ? row[0].toString().trim() : ''; 
+      const currentQuantity = parseInt(row[2]) || 0; 
+      const rowClass = currentQuantity < 10 ? 'low-stock' : ''; 
+      
+      html += `<tr class="${rowClass}">`;
+      row.forEach(cell => html += `<td>${cell !== null && cell !== undefined ? cell : ''}</td>`);
+      
+      const skuString = JSON.stringify(productSku);
+      
+      html += `<td>
+                <button onclick="editItem(${skuString})" class="btn-action edit">Edit</button>
+                <button onclick="deleteItem(${skuString})" class="btn-action delete">Hapus</button>
+              </td>`;
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html; 
+  }
+  
+  // Fungsi edit/delete placeholder
+  function editItem(sku) { console.log('Edit item:', sku); alert('Edit ' + sku + ' belum berfungsi lagi.'); }
+  function deleteItem(sku) { console.log('Hapus item:', sku); alert('Hapus ' + sku + ' belum berfungsi lagi.'); }
 
 </script>
 
 <style>
-/* CSS Stok */
+/* CSS Stok anda dikekalkan */
 #stock-items-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 #stock-items-view th, #stock-items-view td { border: 1px solid #ccc; padding: 10px; text-align: left; }
 #stock-items-view th { background-color: #ecf0f1; }

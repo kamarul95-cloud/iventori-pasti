@@ -34,7 +34,6 @@
 
         mainContentDiv.innerHTML = `<h2>Memuatkan ${pageName}...</h2>`;
         
-        // Menggunakan Fetch API untuk memuatkan fail HTML secara modular
         fetch(`${pageName}.html`)
           .then(response => {
             if (!response.ok) {
@@ -50,17 +49,15 @@
                 loadStockData();
             }
             if (pageName === 'AddProduct' && typeof initializeAddProductForm === 'function') {
-                // Diperlukan untuk modul penambahan
                 initializeAddProductForm(); 
             }
           })
           .catch(error => {
             console.error("Ralat Memuatkan Modul:", error);
-            mainContentDiv.innerHTML = `<p style="color: red;">Ralat: Gagal memuatkan modul. Sila semak struktur fail GitHub.</p>`;
+            mainContentDiv.innerHTML = `<p style="color: red;">Ralat: ${error.message}</p>`;
           });
       }
       
-      // Muatkan Dashboard secara automatik
       loadContent('Dashboard');
     </script>
   </body>

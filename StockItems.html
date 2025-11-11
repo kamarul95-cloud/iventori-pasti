@@ -17,41 +17,30 @@
 
   async function loadStockData() {
     try {
-      const container = document.getElementById('product-table-container');
-
       const response = await fetch(CSV_URL);
-      if (!response.ok) {
-          throw new Error(`HTTP Error! Status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
       
-      const csvText = await response.text();
-      let data = parseCSV(csvText);
-
-      if (data.length > 0) {
-          data.shift();
-      }
+      let data = parseCSV(await response.text());
+      if (data.length > 0) data.shift();
 
       displayProducts(data);
-
     } catch (error) {
-      console.error("Ralat fetching data:", error);
       document.getElementById('product-table-container').innerHTML = 
-          `<p style="color: red;">Ralat Web: Gagal memuatkan data. ${error.message}</p>`;
+          `<p style="color: red;">Ralat: Gagal memuatkan data dari CSV. ${error.message}</p>`;
     }
   }
 
   function displayProducts(data) {
+    // ... (Logik displayProducts anda) ...
     const container = document.getElementById('product-table-container');
-    if (data.length === 0) {
-        container.innerHTML = `<p style="color: red;">Tiada data produk ditemui.</p>`;
-        return;
-    }
+    // ... (Pembinaan Jadual) ...
     
+    // (Kod displayProducts penuh anda seperti dalam jawapan terdahulu, diletakkan di sini)
     const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
     let html = '<table><thead><tr>';
     headers.forEach(h => html += `<th>${h}</th>`);
     html += '</tr></thead><tbody>';
-    
+
     data.forEach(row => {
       const productSku = row[0] ? row[0].toString().trim() : ''; 
       const currentQuantity = parseInt(row[2]) || 0; 
@@ -72,13 +61,15 @@
     html += '</tbody></table>';
     container.innerHTML = html; 
   }
-
+  
+  // Fungsi edit/delete placeholder
   function editItem(sku) { console.log('Edit item:', sku); alert('Edit ' + sku + ' belum berfungsi lagi.'); }
-  function deleteItem(sku) { console.log('Delete item:', sku); alert('Hapus ' + sku + ' belum berfungsi lagi.'); }
+  function deleteItem(sku) { console.log('Hapus item:', sku); alert('Hapus ' + sku + ' belum berfungsi lagi.'); }
+
 </script>
 
 <style>
-/* ... CSS dari kod asal anda ... */
+/* CSS Stok */
 #stock-items-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 #stock-items-view th, #stock-items-view td { border: 1px solid #ccc; padding: 10px; text-align: left; }
 #stock-items-view th { background-color: #ecf0f1; }

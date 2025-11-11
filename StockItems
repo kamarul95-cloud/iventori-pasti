@@ -1,0 +1,97 @@
+<div id="stock-items-view">
+  <h2>📦 Senarai Stok Produk</h2>
+  <button onclick="loadContent('AddProduct')" style="float: right; margin-bottom: 10px; background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">+ Tambah Produk</button>
+  
+  <div id="product-table-container">
+    <p>Memuatkan data inventori...</p>
+  </div>
+</div>
+
+<script>
+  // URL CSV Anda (sama seperti yang digunakan dalam Apps Script)
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
+
+  // Fungsi untuk mem-parsing CSV kepada array 2D
+  function parseCSV(csvText) {
+      const rows = csvText.trim().split('\n');
+      return rows.map(row => row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.trim().replace(/^"|"$/g, '')));
+  }
+
+  // Fungsi untuk memuatkan data menggunakan Fetch API (Standard Web)
+  async function loadStockData() {
+    try {
+      const container = document.getElementById('product-table-container');
+
+      const response = await fetch(CSV_URL);
+      if (!response.ok) {
+          throw new Error(`HTTP Error! Status: ${response.status}`);
+      }
+      
+      const csvText = await response.text();
+      let data = parseCSV(csvText);
+
+      // Buang header (Baris pertama)
+      if (data.length > 0) {
+          data.shift();
+      }
+
+      displayProducts(data);
+
+    } catch (error) {
+      console.error("Ralat fetching data:", error);
+      document.getElementById('product-table-container').innerHTML = 
+          `<p style="color: red;">Ralat Web: Gagal memuatkan data dari CSV. Sila semak konsol.</p>`;
+    }
+  }
+
+  // Fungsi untuk memaparkan data dalam jadual
+  function displayProducts(data) {
+    const container = document.getElementById('product-table-container');
+
+    if (data.length === 0) {
+        container.innerHTML = `<p style="color: red;">Tiada data produk ditemui.</p>`;
+        return;
+    }
+
+    const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
+    let html = '<table><thead><tr>';
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += '</tr></thead><tbody>';
+
+    data.forEach(row => {
+      
+      const productSku = row[0] ? row[0].toString().trim() : ''; 
+      const currentQuantity = parseInt(row[2]) || 0; 
+      const rowClass = currentQuantity < 10 ? 'low-stock' : ''; 
+      
+      html += `<tr class="${rowClass}">`;
+      row.forEach(cell => html += `<td>${cell !== null && cell !== undefined ? cell : ''}</td>`);
+      
+      const skuString = JSON.stringify(productSku);
+      
+      html += `<td>
+                <button onclick="editItem(${skuString})" class="btn-action edit">Edit</button>
+                <button onclick="deleteItem(${skuString})" class="btn-action delete">Hapus</button>
+              </td>`;
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html; 
+  }
+
+  function editItem(sku) { console.log('Edit item:', sku); alert('Edit ' + sku + ' belum berfungsi lagi.'); }
+  function deleteItem(sku) { console.log('Delete item:', sku); alert('Hapus ' + sku + ' belum berfungsi lagi.'); }
+  
+  // TIDAK perlu panggil loadStockData() di sini. Ia dipanggil dari Index.html selepas disuntik.
+</script>
+
+<style>
+#stock-items-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+#stock-items-view th, #stock-items-view td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+#stock-items-view th { background-color: #ecf0f1; }
+#stock-items-view .low-stock { background-color: #fce7e7; color: #c0392b; font-weight: bold; }
+.btn-action { padding: 5px 10px; margin-right: 5px; border: none; cursor: pointer; border-radius: 3px;}
+.btn-action.edit { background-color: #3498db; color: white; }
+.btn-action.delete { background-color: #e74c3c; color: white; }
+</style>

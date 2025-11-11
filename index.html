@@ -2,8 +2,9 @@
 <html>
   <head>
     <title>Inventory Manager GitHub</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
-      /* CSS Rangka Anda */
+      /* CSS Rangka Anda dikekalkan */
       body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
       #sidebar { width: 200px; height: 100vh; background: #2c3e50; color: white; padding-top: 20px; float: left; }
       .menu-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.3s; }
@@ -12,7 +13,6 @@
     </style>
   </head>
   <body>
-
     <div id="sidebar">
       <div style="text-align: center; padding-bottom: 20px; font-size: 1.2em; font-weight: bold;">Inventory Manager</div>
       <div class="menu-item" onclick="loadContent('Dashboard')">🏠 Dashboard</div>
@@ -38,7 +38,7 @@
           })
           .then(html => {
             mainContentDiv.innerHTML = html;
-            // Panggil fungsi permulaan modul
+            
             if (pageName === 'StockItems' && typeof loadStockData === 'function') loadStockData();
             if (pageName === 'AddProduct' && typeof initializeAddProductForm === 'function') initializeAddProductForm();
           })

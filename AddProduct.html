@@ -1,7 +1,5 @@
 <div id="add-product-view">
     <h2>➕ Tambah Produk Baharu</h2>
-    <p>Data akan dihantar ke Apps Script API anda untuk disimpan ke Google Sheet.</p>
-    
     <form id="addProductForm" onsubmit="handleFormSubmit(event)">
         
         <label for="sku">SKU:</label>
@@ -25,7 +23,7 @@
 </div>
 
 <script>
-    // URL API Apps Script anda (untuk fungsi MENULIS)
+    // GANTIKAN DENGAN URL API /exec ANDA
     const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbwg336ZLa1EAyETMU5_X6cY9huwelGJNObhEBVQOUoRP-S4E7WTrkXlmE86Rd69VXGt/exec';
 
     async function handleFormSubmit(event) {
@@ -42,22 +40,19 @@
             price: parseFloat(form.price.value)
         };
 
-        statusDiv.innerHTML = 'Menyimpan data ke Apps Script...';
+        statusDiv.innerHTML = 'Menghantar data ke server...';
         
         try {
-            // Menggunakan Fetch POST untuk menghantar data ke fungsi doPost di Code.gs
             const response = await fetch(GAS_WRITE_API_URL, {
                 method: 'POST',
-                mode: 'cors', // Penting untuk CORS/GitHub
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(productData)
             });
 
-            if (!response.ok) {
-                 throw new Error(`Ralat API! Status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Ralat API! Status: ${response.status}`);
 
             const result = await response.json();
 
@@ -66,17 +61,15 @@
 
         } catch (error) {
             statusDiv.innerHTML = `<span style="color: red; font-weight: bold;">❌ Ralat API: ${error.message}</span>`;
-            console.error("Ralat simpan:", error);
         }
     }
     
     function initializeAddProductForm() {
-        console.log("Modul AddProduct diaktifkan.");
+        // Fungsi permulaan (jika perlu)
     }
 </script>
 
 <style>
-/* ... CSS dari kod asal anda ... */
 #addProductForm label { display: inline-block; width: 150px; text-align: right; margin-right: 10px; }
 #addProductForm input[type="text"], #addProductForm input[type="number"] { padding: 8px; margin-bottom: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
 </style>

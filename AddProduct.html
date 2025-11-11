@@ -1,6 +1,6 @@
 <div id="add-product-view">
     <h2>➕ Tambah Produk Baharu</h2>
-    <p>Data yang dihantar dari borang ini akan disimpan ke Google Sheet anda melalui Apps Script API.</p>
+    <p>Data akan dihantar ke Apps Script API anda untuk disimpan ke Google Sheet.</p>
     
     <form id="addProductForm" onsubmit="handleFormSubmit(event)">
         
@@ -25,14 +25,15 @@
 </div>
 
 <script>
-    // Fungsi ini dipanggil apabila butang "Simpan Produk" ditekan
-    function handleFormSubmit(event) {
-        event.preventDefault(); // Hentikan borang daripada refresh laman
+    // URL API Apps Script anda (untuk fungsi MENULIS)
+    const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbwg336ZLa1EAyETMU5_X6cY9huwelGJNObhEBVQOUoRP-S4E7WTrkXlmE86Rd69VXGt/exec';
+
+    async function handleFormSubmit(event) {
+        event.preventDefault(); 
         
         const form = document.getElementById('addProductForm');
         const statusDiv = document.getElementById('form-status');
         
-        // 1. Kumpulkan data dari borang
         const productData = {
             sku: form.sku.value,
             name: form.name.value,
@@ -41,31 +42,41 @@
             price: parseFloat(form.price.value)
         };
 
-        statusDiv.innerHTML = 'Menyimpan data ke Google Sheet...';
+        statusDiv.innerHTML = 'Menyimpan data ke Apps Script...';
         
-        // 2. Hantar data ke fungsi Apps Script (GAS)
-        google.script.run
-            .withSuccessHandler(function(response) {
-                // Berjaya disimpan
-                statusDiv.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${response}</span>`;
-                form.reset(); // Kosongkan borang
-            })
-            .withFailureHandler(function(error) {
-                // Gagal disimpan
-                statusDiv.innerHTML = `<span style="color: red; font-weight: bold;">❌ Ralat: ${error.message}</span>`;
-                console.error("Ralat simpan:", error);
-            })
-            .saveProduct(productData); // Panggil fungsi di Code.gs
+        try {
+            // Menggunakan Fetch POST untuk menghantar data ke fungsi doPost di Code.gs
+            const response = await fetch(GAS_WRITE_API_URL, {
+                method: 'POST',
+                mode: 'cors', // Penting untuk CORS/GitHub
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(productData)
+            });
+
+            if (!response.ok) {
+                 throw new Error(`Ralat API! Status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            statusDiv.innerHTML = `<span style="color: green; font-weight: bold;">✅ ${result.message}</span>`;
+            form.reset();
+
+        } catch (error) {
+            statusDiv.innerHTML = `<span style="color: red; font-weight: bold;">❌ Ralat API: ${error.message}</span>`;
+            console.error("Ralat simpan:", error);
+        }
     }
     
-    // Fungsi permulaan (dipanggil oleh Index.html)
     function initializeAddProductForm() {
         console.log("Modul AddProduct diaktifkan.");
     }
 </script>
 
 <style>
-/* CSS Ringkas Borang */
+/* ... CSS dari kod asal anda ... */
 #addProductForm label { display: inline-block; width: 150px; text-align: right; margin-right: 10px; }
 #addProductForm input[type="text"], #addProductForm input[type="number"] { padding: 8px; margin-bottom: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
 </style>

@@ -90,237 +90,216 @@
         </div>
     </div>
 
-    <script>
-        // ===============================================
-        // TETAPAN API DAN DATA
-        // ===============================================
+<script>
+    // ===============================================
+    // TETAPAN API DAN DATA
+    // ===============================================
+    const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzOYYjxPiJprY32Kp5XbOyw-ILi9Yz3YteVM1JDGGc1cRD3kWcm2NgUqVG5IyAwWKqr5A/exec'; 
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
+    
+    let allProductData = []; // Menyimpan data CSV untuk fungsi Edit
 
-        // *** WAJIB PASTIKAN URL INI ADALAH URL GAS ANDA YANG TELAH DI DEPLOY SEBAGAI 'Anyone' ***
-        const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzDSHsHcinidtRwIpIHVXmPQCRYC4pNYKlBEwhCisOZqRGVa4FXKaiPa-1ObOgV5Vzi/exec'; 
+    // ===============================================
+    // FUNGSI NAVIGASI
+    // ===============================================
+    function showView(viewId, menuItem) {
+        document.querySelectorAll('.content-view').forEach(view => view.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
 
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
-        
-        let allProductData = []; // Menyimpan data CSV untuk fungsi Edit
+        document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+        if (menuItem) menuItem.classList.add('active');
 
-        // ===============================================
-        // FUNGSI NAVIGASI
-        // ===============================================
+        if (viewId === 'stock-view') loadStockData();
+    }
 
-        function showView(viewId, menuItem) {
-            document.querySelectorAll('.content-view').forEach(view => view.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+    // ===============================================
+    // FUNGSI BACA DATA (READ)
+    // ===============================================
+    function loadStockData() {
+        const container = document.getElementById('product-table-container');
+        container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
 
-            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-            if (menuItem) {
-                menuItem.classList.add('active');
-            }
-
-            if (viewId === 'stock-view') {
-                loadStockData(); // Muat semula data setiap kali tab Stok dilihat
-            }
-        }
-
-        // ===============================================
-        // FUNGSI BACA DATA (READ)
-        // ===============================================
-
-        function loadStockData() {
-            const container = document.getElementById('product-table-container');
-            container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
-
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: false, 
-                skipEmptyLines: true,
-                complete: function(results) {
-                    let data = results.data;
-                    
-                    // Penapis Kuat (Membuang SEMUA header/baris kotor - mencari SKU yang bermula dengan 'P')
-                    allProductData = data.filter(row => {
-                        return row.length > 1 && row[1] && row[1].startsWith('P');
-                    });
-
-                    displayProducts(allProductData);
-                },
-                error: function(error) {
-                    container.innerHTML = `<p style="color: red;">❌ Ralat Pemuatan Data: ${error.message}</p>`;
-                }
-            });
-        }
-
-        function displayProducts(data) {
-            const container = document.getElementById('product-table-container');
-            if (!data || data.length === 0) {
-                container.innerHTML = `<p style="color: red;">❌ Tiada data produk ditemui.</p>`;
-                return;
-            }
-            
-            const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
-            let html = '<table><thead><tr>';
-            headers.forEach(h => html += `<th>${h}</th>`);
-            html += '</tr></thead><tbody>';
-
-            data.forEach(row => {
-                // Row length adalah 6 (Baris, SKU, Nama, Kuantiti, Kos, Harga Jualan)
-                if (row.length < 6) return; 
-
-                const productSku = row[1] || ''; // index 1 = SKU
-                const currentQuantity = parseInt(row[3]) || 0; // index 3 = Kuantiti
-                const rowClass = currentQuantity < 10 ? 'low-stock' : ''; 
-                const skuString = JSON.stringify(productSku);
+        Papa.parse(CSV_URL, {
+            download: true,
+            header: false, 
+            skipEmptyLines: true,
+            complete: function(results) {
+                let data = results.data;
                 
-                // Hantar keseluruhan 'row' (data array) ke fungsi edit
-                const rowString = JSON.stringify(row);
-
-                html += `<tr class="${rowClass}">`;
-                
-                for (let i = 1; i <= 5; i++) { // Mula dari 1 (SKU) hingga 5 (Harga Jualan)
-                    html += `<td>${row[i] || ''}</td>`;
-                }
-                
-                html += `<td>
-                            <button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
-                            <button onclick='deleteItem(${skuString})' class="btn-action delete">Hapus</button>
-                        </td>`;
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            container.innerHTML = html; 
-        }
-        
-        // ===============================================
-        // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE)
-        // ===============================================
-
-        // Sediakan borang untuk 'Tambah Produk'
-        function prepareAddForm() {
-            document.getElementById('form-title').innerText = '➕ Tambah Produk Baharu';
-            document.getElementById('addProductForm').reset();
-            document.getElementById('form-action').value = 'addProduct';
-            document.getElementById('sku').disabled = false; // Benarkan SKU diisi
-            document.getElementById('form-submit-btn').innerText = 'Simpan Produk';
-            document.getElementById('form-status').innerHTML = '';
-            showView('add-product-view', document.getElementById('nav-add'));
-        }
-
-        // Sediakan borang untuk 'Edit Produk'
-        function editItem(rowData) {
-            document.getElementById('form-title').innerText = '✏️ Kemaskini Produk';
-            document.getElementById('addProductForm').reset();
-            document.getElementById('form-action').value = 'editProduct';
-            
-            // Isi borang dengan data dari 'rowData' (berdasarkan CSV kotor)
-            document.getElementById('sku').value = rowData[1]; // SKU
-            document.getElementById('sku').disabled = true; // SKU tidak boleh diubah
-            document.getElementById('name').value = rowData[2]; // Nama Produk
-            document.getElementById('quantity').value = rowData[3]; // Kuantiti
-            document.getElementById('cost').value = rowData[4]; // Harga Belian
-            document.getElementById('price').value = rowData[5]; // Harga Jualan
-            
-            document.getElementById('form-submit-btn').innerText = 'Kemaskini Produk';
-            document.getElementById('form-status').innerHTML = '';
-            showView('add-product-view', document.getElementById('nav-add'));
-        }
-
-        // Padam item
-        async function deleteItem(sku) {
-            if (!confirm(`Anda pasti mahu memadam produk ${sku}?`)) {
-                return;
-            }
-
-            const payload = {
-                action: 'deleteProduct',
-                sku: sku
-            };
-
-            try {
-                const response = await fetch(GAS_WRITE_API_URL, {
-                    method: 'POST',
-                    // Mode 'cors' dibuang kerana ia boleh menyebabkan ralat 'Failed to fetch'
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                // Pastikan response.ok adalah true (status 200) sebelum cuba parse JSON
-                if (!response.ok) {
-                    throw new Error(`Ralat HTTP: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    alert(result.message);
-                    loadStockData(); // Muat semula jadual
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                alert(`Ralat memadam data: ${error.message}`);
-            }
-        }
-
-        // Menghantar data (Tambah atau Edit)
-        async function handleFormSubmit(event) {
-            event.preventDefault();
-            const form = document.getElementById('addProductForm');
-            const statusDiv = document.getElementById('form-status');
-            const action = document.getElementById('form-action').value;
-            
-            const productData = {
-                sku: form.sku.value,
-                name: form.name.value,
-                quantity: parseInt(form.quantity.value),
-                cost: parseFloat(form.cost.value),
-                price: parseFloat(form.price.value)
-            };
-
-            const payload = {
-                action: action, // 'addProduct' or 'editProduct'
-                data: productData
-            };
-            
-            statusDiv.innerHTML = 'Menghantar data ke API...';
-            
-            try {
-                const response = await fetch(GAS_WRITE_API_URL, {
-                    method: 'POST',
-                    // Mode 'cors' dibuang
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                // Filter: pastikan ada SKU di kolum 1 dan SKU nampak seperti 'P...'
+                allProductData = data.filter(row => {
+                    return row.length > 1 && row[1] && row[1].toString().trim().startsWith('P');
                 });
 
-                // Cek status HTTP sebelum cuba parse JSON
-                if (!response.ok) {
-                    // Ini akan menangkap 401/403 (Unauthorized/Forbidden)
-                    throw new Error(`Ralat HTTP: ${response.status}. Pastikan Apps Script anda di-deploy sebagai 'Anyone'.`);
-                }
-
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    statusDiv.innerHTML = `<span style="color: green;">✅ ${result.message}</span>`;
-                    form.reset();
-                    // Selepas berjaya, kembali ke senarai stok
-                    setTimeout(() => {
-                        showView('stock-view', document.getElementById('nav-stock'));
-                    }, 1000);
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${error.message}</span>`;
+                displayProducts(allProductData);
+            },
+            error: function(error) {
+                container.innerHTML = `<p style="color: red;">❌ Ralat Pemuatan Data: ${error.message}</p>`;
             }
+        });
+    }
+
+    function displayProducts(data) {
+        const container = document.getElementById('product-table-container');
+        if (!data || data.length === 0) {
+            container.innerHTML = `<p style="color: red;">❌ Tiada data produk ditemui.</p>`;
+            return;
         }
         
-        // ===============================================
-        // INITIALIZATION
-        // ===============================================
-        
-        window.onload = function() {
-            showView('dashboard-view', document.getElementById('nav-dashboard')); 
+        const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
+        let html = '<table><thead><tr>';
+        headers.forEach(h => html += `<th>${h}</th>`);
+        html += '</tr></thead><tbody>';
+
+        data.forEach(row => {
+            // Expected row structure: [No?, SKU, Nama, Kuantiti, Harga Belian, Harga Jualan]
+            if (row.length < 6) return;
+
+            const productSku = (row[1] || '').toString().trim();
+            const nama = row[2] || '';
+            const qty = row[3] || 0;
+            const cost = row[4] || '';
+            const price = row[5] || '';
+            const currentQuantity = parseInt(qty) || 0;
+            const rowClass = currentQuantity < 10 ? 'low-stock' : '';
+            const skuString = JSON.stringify(productSku);
+            const rowString = JSON.stringify([row[0], productSku, nama, qty, cost, price]);
+
+            html += `<tr class="${rowClass}">`;
+            html += `<td>${productSku}</td>`;
+            html += `<td>${nama}</td>`;
+            html += `<td>${qty}</td>`;
+            html += `<td>${cost}</td>`;
+            html += `<td>${price}</td>`;
+            html += `<td>
+                        <button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
+                        <button onclick='deleteItem(${skuString})' class="btn-action delete">Hapus</button>
+                    </td>`;
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    // ===============================================
+    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE)
+    // ===============================================
+
+    function prepareAddForm() {
+        document.getElementById('form-title').innerText = '➕ Tambah Produk Baharu';
+        document.getElementById('addProductForm').reset();
+        document.getElementById('form-action').value = 'addProduct';
+        document.getElementById('sku').disabled = false;
+        document.getElementById('form-submit-btn').innerText = 'Simpan Produk';
+        document.getElementById('form-status').innerHTML = '';
+        showView('add-product-view', document.getElementById('nav-add'));
+    }
+
+    function editItem(rowData) {
+        // rowData = [No?, SKU, Nama, Kuantiti, HargaBelian, HargaJualan]
+        document.getElementById('form-title').innerText = '✏️ Kemaskini Produk';
+        document.getElementById('addProductForm').reset();
+        document.getElementById('form-action').value = 'editProduct';
+
+        document.getElementById('sku').value = rowData[1];
+        document.getElementById('sku').disabled = true;
+        document.getElementById('name').value = rowData[2];
+        document.getElementById('quantity').value = rowData[3];
+        document.getElementById('cost').value = rowData[4];
+        document.getElementById('price').value = rowData[5];
+
+        document.getElementById('form-submit-btn').innerText = 'Kemaskini Produk';
+        document.getElementById('form-status').innerHTML = '';
+        showView('add-product-view', document.getElementById('nav-add'));
+    }
+
+    async function deleteItem(sku) {
+        if (!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
+
+        const payload = {
+            action: 'deleteProduct',
+            sku: sku
         };
 
-    </script>
+        try {
+            const res = await fetch(GAS_WRITE_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
+
+            const j = await res.json();
+            if (j.status === 'success') {
+                alert(j.message);
+                loadStockData();
+            } else {
+                throw new Error(j.message || 'Ralat tidak diketahui');
+            }
+        } catch (err) {
+            alert(`Ralat memadam data: ${err.message}`);
+        }
+    }
+
+    async function handleFormSubmit(event) {
+        event.preventDefault();
+        const form = document.getElementById('addProductForm');
+        const statusDiv = document.getElementById('form-status');
+        const action = document.getElementById('form-action').value;
+
+        const productData = {
+            sku: form.sku.value.toString().trim(),
+            name: form.name.value,
+            quantity: parseInt(form.quantity.value) || 0,
+            cost: parseFloat(form.cost.value) || 0,
+            price: parseFloat(form.price.value) || 0
+        };
+
+        const payload = {
+            action: action,
+            data: productData
+        };
+
+        statusDiv.innerHTML = 'Menghantar data ke API...';
+        document.getElementById('form-submit-btn').disabled = true;
+
+        try {
+            const res = await fetch(GAS_WRITE_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
+
+            const j = await res.json();
+            if (j.status === 'success') {
+                statusDiv.innerHTML = `<span style="color: green;">✅ ${j.message}</span>`;
+                form.reset();
+                setTimeout(() => {
+                    showView('stock-view', document.getElementById('nav-stock'));
+                }, 700);
+                // refresh data
+                setTimeout(loadStockData, 1000);
+            } else {
+                throw new Error(j.message || 'Ralat API');
+            }
+        } catch (err) {
+            statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${err.message}</span>`;
+        } finally {
+            document.getElementById('form-submit-btn').disabled = false;
+        }
+    }
+
+    // bind submit
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('addProductForm').addEventListener('submit', handleFormSubmit);
+        // show dashboard initially
+        showView('dashboard-view', document.getElementById('nav-dashboard'));
+    });
+</script>
+
 </body>
 </html>

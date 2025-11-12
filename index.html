@@ -183,7 +183,90 @@
     }
 
     // ===============================================
-    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE)
+    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE) - versi chatbot-like
+    // ===============================================
+
+    /**
+     * Central write function that mimics chatbot flow:
+     * - For add/edit: sends { action: <action>, data: { sku, name, quantity, cost, price } }
+     * - For delete: sends { action: 'deleteProduct', sku: '<sku>' }
+     * Updates form-status, disables button, reloads table after success.
+     */
+    async function writeProduct(action, productData) {
+        const statusDiv = document.getElementById('form-status');
+        statusDiv.innerHTML = 'Menghantar data ke API...';
+        document.getElementById('form-submit-btn').disabled = true;
+
+        // build payload compatible with original backend expectations:
+        let payload;
+        if (action === 'deleteProduct') {
+            // backend original delete expected top-level sku (keep backward compat)
+            payload = {
+                action: 'deleteProduct',
+                sku: productData.sku
+            };
+        } else {
+            // addProduct / editProduct -> put data under "data" to match earlier frontend
+            payload = {
+                action: action,
+                data: {
+                    sku: productData.sku,
+                    name: productData.name,
+                    quantity: productData.quantity,
+                    cost: productData.cost,
+                    price: productData.price
+                }
+            };
+        }
+
+        try {
+            const res = await fetch(GAS_WRITE_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
+
+            const j = await res.json();
+
+            if (j.status === 'success' || j.result === 'success') {
+                // show friendly message (use j.message if available)
+                const message = j.message || j.msg || 'Operasi berjaya.';
+                statusDiv.innerHTML = `<span style="color: green;">✅ ${message}</span>`;
+
+                // reset form on add
+                if (action === 'addProduct') {
+                    document.getElementById('addProductForm').reset();
+                }
+
+                // reload table shortly (imitate chatbot small delay for UX)
+                setTimeout(() => {
+                    loadStockData();
+                }, 700);
+
+                // if editing, go back to stock view
+                if (action === 'editProduct') {
+                    setTimeout(() => {
+                        showView('stock-view', document.getElementById('nav-stock'));
+                    }, 800);
+                }
+            } else {
+                // API returned failure
+                const errMsg = j.message || j.msg || 'Ralat API: operasi gagal';
+                statusDiv.innerHTML = `<span style="color: red;">❌ ${errMsg}</span>`;
+            }
+
+        } catch (err) {
+            statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${err.message}</span>`;
+            console.error('writeProduct error:', err);
+        } finally {
+            document.getElementById('form-submit-btn').disabled = false;
+        }
+    }
+
+    // ===============================================
+    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE) - binding to UI
     // ===============================================
 
     function prepareAddForm() {
@@ -217,36 +300,14 @@
     async function deleteItem(sku) {
         if (!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
 
-        const payload = {
-            action: 'deleteProduct',
-            sku: sku
-        };
-
-        try {
-            const res = await fetch(GAS_WRITE_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
-
-            const j = await res.json();
-            if (j.status === 'success') {
-                alert(j.message);
-                loadStockData();
-            } else {
-                throw new Error(j.message || 'Ralat tidak diketahui');
-            }
-        } catch (err) {
-            alert(`Ralat memadam data: ${err.message}`);
-        }
+        // call centralized writer (mimic chatbot)
+        await writeProduct('deleteProduct', { sku: sku });
+        // after successful delete, loadStockData will be called by writeProduct
     }
 
     async function handleFormSubmit(event) {
         event.preventDefault();
         const form = document.getElementById('addProductForm');
-        const statusDiv = document.getElementById('form-status');
         const action = document.getElementById('form-action').value;
 
         const productData = {
@@ -257,40 +318,17 @@
             price: parseFloat(form.price.value) || 0
         };
 
-        const payload = {
-            action: action,
-            data: productData
-        };
-
-        statusDiv.innerHTML = 'Menghantar data ke API...';
-        document.getElementById('form-submit-btn').disabled = true;
-
-        try {
-            const res = await fetch(GAS_WRITE_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
-
-            const j = await res.json();
-            if (j.status === 'success') {
-                statusDiv.innerHTML = `<span style="color: green;">✅ ${j.message}</span>`;
-                form.reset();
-                setTimeout(() => {
-                    showView('stock-view', document.getElementById('nav-stock'));
-                }, 700);
-                // refresh data
-                setTimeout(loadStockData, 1000);
-            } else {
-                throw new Error(j.message || 'Ralat API');
-            }
-        } catch (err) {
-            statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${err.message}</span>`;
-        } finally {
-            document.getElementById('form-submit-btn').disabled = false;
+        // basic validation (keep simple)
+        if (!productData.sku) {
+            document.getElementById('form-status').innerHTML = `<span style="color: red;">❌ Sila isi SKU.</span>`;
+            return;
         }
+        if (!productData.name) {
+            document.getElementById('form-status').innerHTML = `<span style="color: red;">❌ Sila isi Nama Produk.</span>`;
+            return;
+        }
+
+        await writeProduct(action, productData);
     }
 
     // bind submit

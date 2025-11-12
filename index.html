@@ -1,342 +1,219 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Inventori Tab Bersepadu</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <style>
-        /* CSS Rangka */
-        body { margin: 0; font-family: sans-serif; background: #f4f4f4; }
-        #sidebar { width: 200px; height: 100vh; background: #2c3e50; color: white; padding-top: 20px; float: left; }
-        .menu-item { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #34495e; transition: background 0.3s; }
-        .menu-item:hover, .menu-item.active { background: #34495e; }
-        #main-area { margin-left: 200px; padding: 30px; }
-        #main-area h2 { color: #333; }
-        
-        /* CSS Content View (Tab) */
-        .content-view { display: none; }
-        .content-view.active { display: block; }
-
-        /* CSS Stok */
-        #stock-items-view table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        #stock-items-view th, #stock-items-view td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-        #stock-items-view th { background-color: #ecf0f1; }
-        #stock-items-view .low-stock { background-color: #fce7e7; color: #c0392b; font-weight: bold; }
-        .btn-action { padding: 5px 10px; margin-right: 5px; border: none; cursor: pointer; border-radius: 3px;}
-        .btn-action.edit { background-color: #3498db; color: white; }
-        .btn-action.delete { background-color: #e74c3c; color: white; }
-
-        /* CSS Add Product Form */
-        #addProductForm label { display: inline-block; width: 150px; text-align: right; margin-right: 10px; }
-        #addProductForm input[type="text"], #addProductForm input[type="number"] { padding: 8px; margin-bottom: 10px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
-        #form-status { margin-top: 15px; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Inventori Tab Bersepadu</title>
+<style>
+body { margin:0; font-family:sans-serif; background:#f4f4f4; }
+#sidebar { width:200px; height:100vh; background:#2c3e50; color:white; padding-top:20px; float:left; }
+.menu-item { padding:12px 15px; cursor:pointer; border-bottom:1px solid #34495e; transition:background 0.3s; }
+.menu-item:hover, .menu-item.active { background:#34495e; }
+#main-area { margin-left:200px; padding:30px; }
+#main-area h2 { color:#333; }
+.content-view { display:none; }
+.content-view.active { display:block; }
+#stock-items-view table { width:100%; border-collapse:collapse; margin-top:10px; }
+#stock-items-view th, #stock-items-view td { border:1px solid #ccc; padding:10px; text-align:left; }
+#stock-items-view th { background-color:#ecf0f1; }
+.low-stock { background-color:#fce7e7; color:#c0392b; font-weight:bold; }
+.btn-action { padding:5px 10px; margin-right:5px; border:none; cursor:pointer; border-radius:3px;}
+.btn-action.edit { background-color:#3498db; color:white; }
+.btn-action.delete { background-color:#e74c3c; color:white; }
+#addProductForm label { display:inline-block; width:150px; text-align:right; margin-right:10px; }
+#addProductForm input[type="text"], #addProductForm input[type="number"] { padding:8px; margin-bottom:10px; width:250px; border:1px solid #ccc; border-radius:4px; }
+#form-status { margin-top:15px; font-weight:bold; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div style="text-align: center; padding-bottom: 20px; font-size: 1.2em; font-weight: bold;">Inventory Manager</div>
-        <div id="nav-dashboard" class="menu-item active" onclick="showView('dashboard-view', this)">🏠 Dashboard</div>
-        <div id="nav-stock" class="menu-item" onclick="showView('stock-view', this)">📦 Stock Items</div>
-        <div id="nav-add" class="menu-item" onclick="showView('add-product-view', this)">➕ Tambah Produk</div>
-        <div id="nav-reports" class="menu-item" onclick="showView('reports-view', this)">📊 Laporan</div>
-    </div>
-    
-    <div id="main-area">
-        <div id="dashboard-view" class="content-view active">
-            <h2>🏠 Dashboard Utama</h2>
-            <p>Klik **Stock Items** untuk memuatkan data dari Google Sheet anda.</p>
-        </div>
+<div id="sidebar">
+<div style="text-align:center; padding-bottom:20px; font-size:1.2em; font-weight:bold;">Inventory Manager</div>
+<div id="nav-dashboard" class="menu-item active" onclick="showView('dashboard-view', this)">🏠 Dashboard</div>
+<div id="nav-stock" class="menu-item" onclick="showView('stock-view', this)">📦 Stock Items</div>
+<div id="nav-add" class="menu-item" onclick="showView('add-product-view', this)">➕ Tambah Produk</div>
+<div id="nav-reports" class="menu-item" onclick="showView('reports-view', this)">📊 Laporan</div>
+</div>
 
-        <div id="stock-view" class="content-view">
-            <div id="stock-items-view">
-                <h2>📦 Senarai Stok Produk</h2>
-                <button onclick="prepareAddForm()" style="float: right; margin-bottom: 10px; background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">+ Tambah Produk</button>
-                <div id="product-table-container">
-                    <p>Memuatkan data inventori...</p>
-                </div>
-            </div>
-        </div>
+<div id="main-area">
+<div id="dashboard-view" class="content-view active">
+<h2>🏠 Dashboard Utama</h2>
+<p>Klik <b>Stock Items</b> untuk memuatkan data dari Google Sheet anda.</p>
+</div>
 
-        <div id="add-product-view" class="content-view">
-            <h2 id="form-title">➕ Tambah Produk Baharu</h2>
-            <form id="addProductForm" onsubmit="handleFormSubmit(event)">
-                <input type="hidden" id="form-action" value="addProduct">
-                
-                <label for="sku">SKU:</label>
-                <input type="text" id="sku" name="sku" required><br><br>
-                
-                <label for="name">Nama Produk:</label>
-                <input type="text" id="name" name="name" required><br><br>
+<div id="stock-view" class="content-view">
+<div id="stock-items-view">
+<h2>📦 Senarai Stok Produk</h2>
+<button onclick="prepareAddForm()" style="float:right;margin-bottom:10px;background-color:#2ecc71;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;">+ Tambah Produk</button>
+<div id="product-table-container"><p>Memuatkan data inventori...</p></div>
+</div>
+</div>
 
-                <label for="quantity">Kuantiti:</label>
-                <input type="number" id="quantity" name="quantity" required><br><br>
+<div id="add-product-view" class="content-view">
+<h2 id="form-title">➕ Tambah Produk Baharu</h2>
+<form id="addProductForm" onsubmit="handleFormSubmit(event)">
+<input type="hidden" id="form-action" value="addProduct">
+<label for="sku">SKU:</label>
+<input type="text" id="sku" name="sku" required><br><br>
+<label for="name">Nama Produk:</label>
+<input type="text" id="name" name="name" required><br><br>
+<label for="quantity">Kuantiti:</label>
+<input type="number" id="quantity" name="quantity" required><br><br>
+<label for="cost">Harga Belian (RM):</label>
+<input type="number" step="0.01" id="cost" name="cost" required><br><br>
+<label for="price">Harga Jualan (RM):</label>
+<input type="number" step="0.01" id="price" name="price" required><br><br>
+<button type="submit" id="form-submit-btn" style="background-color:#2ecc71;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;">Simpan Produk</button>
+<div id="form-status"></div>
+</form>
+</div>
 
-                <label for="cost">Harga Belian (RM):</label>
-                <input type="number" step="0.01" id="cost" name="cost" required><br><br>
-                
-                <label for="price">Harga Jualan (RM):</label>
-                <input type="number" step="0.01" id="price" name="price" required><br><br>
-                
-                <button type="submit" id="form-submit-btn" style="background-color: #2ecc71; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px;">Simpan Produk</button>
-                <div id="form-status"></div>
-            </form>
-        </div>
-        
-        <div id="reports-view" class="content-view">
-            <h2>📊 Laporan</h2>
-            <p>Paparan ringkas untuk modul Laporan.</p>
-        </div>
-    </div>
+<div id="reports-view" class="content-view">
+<h2>📊 Laporan</h2>
+<p>Paparan ringkas untuk modul Laporan.</p>
+</div>
+</div>
 
 <script>
-    // ===============================================
-    // TETAPAN API DAN DATA
-    // ===============================================
-    const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzOYYjxPiJprY32Kp5XbOyw-ILi9Yz3YteVM1JDGGc1cRD3kWcm2NgUqVG5IyAwWKqr5A/exec'; 
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv';
-    
-    let allProductData = []; // Menyimpan data CSV untuk fungsi Edit
+const GAS_WRITE_API_URL = 'PASTE_DEPLOYED_GAS_URL_HERE'; // UPDATE
 
-    // ===============================================
-    // FUNGSI NAVIGASI
-    // ===============================================
-    function showView(viewId, menuItem) {
-        document.querySelectorAll('.content-view').forEach(view => view.classList.remove('active'));
-        document.getElementById(viewId).classList.add('active');
+let allProductData = [];
 
-        document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-        if (menuItem) menuItem.classList.add('active');
+function showView(viewId, menuItem){
+document.querySelectorAll('.content-view').forEach(v=>v.classList.remove('active'));
+document.getElementById(viewId).classList.add('active');
+document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
+if(menuItem) menuItem.classList.add('active');
+if(viewId==='stock-view') loadStockData();
+}
 
-        if (viewId === 'stock-view') loadStockData();
-    }
+function loadStockData(){
+const container = document.getElementById('product-table-container');
+container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
+Papa.parse('YOUR_PUBLISHED_CSV_URL_HERE',{ // UPDATE
+download:true, header:false, skipEmptyLines:true,
+complete: function(results){
+let data = results.data;
+allProductData = data.filter(row=>row.length>1 && row[0]);
+displayProducts(allProductData);
+},
+error: function(err){ container.innerHTML = `<p style="color:red;">❌ Ralat: ${err.message}</p>`; }
+});
+}
 
-    // ===============================================
-    // FUNGSI BACA DATA (READ)
-    // ===============================================
-    function loadStockData() {
-        const container = document.getElementById('product-table-container');
-        container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
+function displayProducts(data){
+const container = document.getElementById('product-table-container');
+if(!data||data.length===0){ container.innerHTML=`<p style="color:red;">❌ Tiada data produk ditemui.</p>`; return; }
+const headers=['SKU','Nama Produk','Kuantiti','Harga Belian','Harga Jualan','Tindakan'];
+let html='<table><thead><tr>';
+headers.forEach(h=>html+=`<th>${h}</th>`); html+='</tr></thead><tbody>';
+data.forEach(row=>{
+if(row.length<5) return;
+const productSku=row[0], nama=row[1], qty=row[2], cost=row[3], price=row[4];
+const currentQuantity=parseInt(qty)||0;
+const rowClass=currentQuantity<10?'low-stock':'';
+const rowString=JSON.stringify(row);
+html+=`<tr class="${rowClass}">
+<td>${productSku}</td><td>${nama}</td><td>${qty}</td><td>${cost}</td><td>${price}</td>
+<td>
+<button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
+<button onclick='deleteItem("${productSku}")' class="btn-action delete">Hapus</button>
+</td></tr>`;
+});
+html+='</tbody></table>';
+container.innerHTML=html;
+}
 
-        Papa.parse(CSV_URL, {
-            download: true,
-            header: false, 
-            skipEmptyLines: true,
-            complete: function(results) {
-                let data = results.data;
-                
-                // Filter: pastikan ada SKU di kolum 1 dan SKU nampak seperti 'P...'
-                allProductData = data.filter(row => {
-                    return row.length > 1 && row[1] && row[1].toString().trim().startsWith('P');
-                });
+// ==================
+// ADD / EDIT / DELETE
+// ==================
+async function writeProduct(action, productData){
+const statusDiv=document.getElementById('form-status');
+statusDiv.innerHTML='Menghantar data ke API...';
+document.getElementById('form-submit-btn').disabled=true;
 
-                displayProducts(allProductData);
-            },
-            error: function(error) {
-                container.innerHTML = `<p style="color: red;">❌ Ralat Pemuatan Data: ${error.message}</p>`;
-            }
-        });
-    }
+const formBody=new URLSearchParams();
+formBody.append('action', action);
+if(action==='deleteProduct'){ formBody.append('sku', productData.sku); }
+else{
+formBody.append('sku', productData.sku);
+formBody.append('name', productData.name);
+formBody.append('quantity', productData.quantity);
+formBody.append('cost', productData.cost);
+formBody.append('price', productData.price);
+}
 
-    function displayProducts(data) {
-        const container = document.getElementById('product-table-container');
-        if (!data || data.length === 0) {
-            container.innerHTML = `<p style="color: red;">❌ Tiada data produk ditemui.</p>`;
-            return;
-        }
-        
-        const headers = ['SKU', 'Nama Produk', 'Kuantiti', 'Harga Belian', 'Harga Jualan', 'Tindakan'];
-        let html = '<table><thead><tr>';
-        headers.forEach(h => html += `<th>${h}</th>`);
-        html += '</tr></thead><tbody>';
+try{
+const res=await fetch(GAS_WRITE_API_URL,{ method:'POST', body:formBody });
+if(!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
+const j=await res.json();
+if(j.status==='success'||j.result==='success'){
+const message=j.message||j.msg||'Operasi berjaya.';
+statusDiv.innerHTML=`<span style="color:green;">✅ ${message}</span>`;
+if(action==='addProduct') document.getElementById('addProductForm').reset();
+setTimeout(()=>loadStockData(),700);
+if(action==='editProduct') setTimeout(()=>showView('stock-view',document.getElementById('nav-stock')),800);
+}else{
+const errMsg=j.message||j.msg||'Ralat API: operasi gagal';
+statusDiv.innerHTML=`<span style="color:red;">❌ ${errMsg}</span>`;
+}
+}catch(err){
+statusDiv.innerHTML=`<span style="color:red;">❌ Ralat API: ${err.message}</span>`;
+console.error('writeProduct error:', err);
+}finally{ document.getElementById('form-submit-btn').disabled=false; }
+}
 
-        data.forEach(row => {
-            // Expected row structure: [No?, SKU, Nama, Kuantiti, Harga Belian, Harga Jualan]
-            if (row.length < 6) return;
+function prepareAddForm(){
+document.getElementById('form-title').innerText='➕ Tambah Produk Baharu';
+document.getElementById('addProductForm').reset();
+document.getElementById('form-action').value='addProduct';
+document.getElementById('sku').disabled=false;
+document.getElementById('form-submit-btn').innerText='Simpan Produk';
+document.getElementById('form-status').innerHTML='';
+showView('add-product-view', document.getElementById('nav-add'));
+}
 
-            const productSku = (row[1] || '').toString().trim();
-            const nama = row[2] || '';
-            const qty = row[3] || 0;
-            const cost = row[4] || '';
-            const price = row[5] || '';
-            const currentQuantity = parseInt(qty) || 0;
-            const rowClass = currentQuantity < 10 ? 'low-stock' : '';
-            const skuString = JSON.stringify(productSku);
-            const rowString = JSON.stringify([row[0], productSku, nama, qty, cost, price]);
+function editItem(rowData){
+document.getElementById('form-title').innerText='✏️ Kemaskini Produk';
+document.getElementById('addProductForm').reset();
+document.getElementById('form-action').value='editProduct';
+document.getElementById('sku').value=rowData[0];
+document.getElementById('sku').disabled=true;
+document.getElementById('name').value=rowData[1];
+document.getElementById('quantity').value=rowData[2];
+document.getElementById('cost').value=rowData[3];
+document.getElementById('price').value=rowData[4];
+document.getElementById('form-submit-btn').innerText='Kemaskini Produk';
+document.getElementById('form-status').innerHTML='';
+showView('add-product-view', document.getElementById('nav-add'));
+}
 
-            html += `<tr class="${rowClass}">`;
-            html += `<td>${productSku}</td>`;
-            html += `<td>${nama}</td>`;
-            html += `<td>${qty}</td>`;
-            html += `<td>${cost}</td>`;
-            html += `<td>${price}</td>`;
-            html += `<td>
-                        <button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
-                        <button onclick='deleteItem(${skuString})' class="btn-action delete">Hapus</button>
-                    </td>`;
-            html += '</tr>';
-        });
+async function deleteItem(sku){
+if(!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
+await writeProduct('deleteProduct',{sku});
+}
 
-        html += '</tbody></table>';
-        container.innerHTML = html;
-    }
+async function handleFormSubmit(e){
+e.preventDefault();
+const f=document.getElementById('addProductForm');
+const action=document.getElementById('form-action').value;
+const productData={
+sku:f.sku.value.trim(),
+name:f.name.value,
+quantity:parseInt(f.quantity.value)||0,
+cost:parseFloat(f.cost.value)||0,
+price:parseFloat(f.price.value)||0
+};
+if(!productData.sku){ document.getElementById('form-status').innerHTML=`<span style="color:red;">❌ Sila isi SKU.</span>`; return; }
+if(!productData.name){ document.getElementById('form-status').innerHTML=`<span style="color:red;">❌ Sila isi Nama Produk.</span>`; return; }
+await writeProduct(action,productData);
+}
 
-    // ===============================================
-    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE) - versi chatbot-like
-    // ===============================================
-
-    /**
-     * Central write function that mimics chatbot flow:
-     * - For add/edit: sends { action: <action>, data: { sku, name, quantity, cost, price } }
-     * - For delete: sends { action: 'deleteProduct', sku: '<sku>' }
-     * Updates form-status, disables button, reloads table after success.
-     */
-    async function writeProduct(action, productData) {
-        const statusDiv = document.getElementById('form-status');
-        statusDiv.innerHTML = 'Menghantar data ke API...';
-        document.getElementById('form-submit-btn').disabled = true;
-
-        // build payload compatible with original backend expectations:
-        let payload;
-        if (action === 'deleteProduct') {
-            // backend original delete expected top-level sku (keep backward compat)
-            payload = {
-                action: 'deleteProduct',
-                sku: productData.sku
-            };
-        } else {
-            // addProduct / editProduct -> put data under "data" to match earlier frontend
-            payload = {
-                action: action,
-                data: {
-                    sku: productData.sku,
-                    name: productData.name,
-                    quantity: productData.quantity,
-                    cost: productData.cost,
-                    price: productData.price
-                }
-            };
-        }
-
-        try {
-            const res = await fetch(GAS_WRITE_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
-
-            const j = await res.json();
-
-            if (j.status === 'success' || j.result === 'success') {
-                // show friendly message (use j.message if available)
-                const message = j.message || j.msg || 'Operasi berjaya.';
-                statusDiv.innerHTML = `<span style="color: green;">✅ ${message}</span>`;
-
-                // reset form on add
-                if (action === 'addProduct') {
-                    document.getElementById('addProductForm').reset();
-                }
-
-                // reload table shortly (imitate chatbot small delay for UX)
-                setTimeout(() => {
-                    loadStockData();
-                }, 700);
-
-                // if editing, go back to stock view
-                if (action === 'editProduct') {
-                    setTimeout(() => {
-                        showView('stock-view', document.getElementById('nav-stock'));
-                    }, 800);
-                }
-            } else {
-                // API returned failure
-                const errMsg = j.message || j.msg || 'Ralat API: operasi gagal';
-                statusDiv.innerHTML = `<span style="color: red;">❌ ${errMsg}</span>`;
-            }
-
-        } catch (err) {
-            statusDiv.innerHTML = `<span style="color: red;">❌ Ralat API: ${err.message}</span>`;
-            console.error('writeProduct error:', err);
-        } finally {
-            document.getElementById('form-submit-btn').disabled = false;
-        }
-    }
-
-    // ===============================================
-    // FUNGSI TULIS DATA (CREATE, UPDATE, DELETE) - binding to UI
-    // ===============================================
-
-    function prepareAddForm() {
-        document.getElementById('form-title').innerText = '➕ Tambah Produk Baharu';
-        document.getElementById('addProductForm').reset();
-        document.getElementById('form-action').value = 'addProduct';
-        document.getElementById('sku').disabled = false;
-        document.getElementById('form-submit-btn').innerText = 'Simpan Produk';
-        document.getElementById('form-status').innerHTML = '';
-        showView('add-product-view', document.getElementById('nav-add'));
-    }
-
-    function editItem(rowData) {
-        // rowData = [No?, SKU, Nama, Kuantiti, HargaBelian, HargaJualan]
-        document.getElementById('form-title').innerText = '✏️ Kemaskini Produk';
-        document.getElementById('addProductForm').reset();
-        document.getElementById('form-action').value = 'editProduct';
-
-        document.getElementById('sku').value = rowData[1];
-        document.getElementById('sku').disabled = true;
-        document.getElementById('name').value = rowData[2];
-        document.getElementById('quantity').value = rowData[3];
-        document.getElementById('cost').value = rowData[4];
-        document.getElementById('price').value = rowData[5];
-
-        document.getElementById('form-submit-btn').innerText = 'Kemaskini Produk';
-        document.getElementById('form-status').innerHTML = '';
-        showView('add-product-view', document.getElementById('nav-add'));
-    }
-
-    async function deleteItem(sku) {
-        if (!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
-
-        // call centralized writer (mimic chatbot)
-        await writeProduct('deleteProduct', { sku: sku });
-        // after successful delete, loadStockData will be called by writeProduct
-    }
-
-    async function handleFormSubmit(event) {
-        event.preventDefault();
-        const form = document.getElementById('addProductForm');
-        const action = document.getElementById('form-action').value;
-
-        const productData = {
-            sku: form.sku.value.toString().trim(),
-            name: form.name.value,
-            quantity: parseInt(form.quantity.value) || 0,
-            cost: parseFloat(form.cost.value) || 0,
-            price: parseFloat(form.price.value) || 0
-        };
-
-        // basic validation (keep simple)
-        if (!productData.sku) {
-            document.getElementById('form-status').innerHTML = `<span style="color: red;">❌ Sila isi SKU.</span>`;
-            return;
-        }
-        if (!productData.name) {
-            document.getElementById('form-status').innerHTML = `<span style="color: red;">❌ Sila isi Nama Produk.</span>`;
-            return;
-        }
-
-        await writeProduct(action, productData);
-    }
-
-    // bind submit
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('addProductForm').addEventListener('submit', handleFormSubmit);
-        // show dashboard initially
-        showView('dashboard-view', document.getElementById('nav-dashboard'));
-    });
+document.addEventListener('DOMContentLoaded',function(){
+document.getElementById('addProductForm').addEventListener('submit',handleFormSubmit);
+showView('dashboard-view',document.getElementById('nav-dashboard'));
+});
 </script>
 
 </body>

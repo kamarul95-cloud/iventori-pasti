@@ -1,220 +1,200 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistem Inventori Tab Bersepadu</title>
-<style>
-body { margin:0; font-family:sans-serif; background:#f4f4f4; }
-#sidebar { width:200px; height:100vh; background:#2c3e50; color:white; padding-top:20px; float:left; }
-.menu-item { padding:12px 15px; cursor:pointer; border-bottom:1px solid #34495e; transition:background 0.3s; }
-.menu-item:hover, .menu-item.active { background:#34495e; }
-#main-area { margin-left:200px; padding:30px; }
-#main-area h2 { color:#333; }
-.content-view { display:none; }
-.content-view.active { display:block; }
-#stock-items-view table { width:100%; border-collapse:collapse; margin-top:10px; }
-#stock-items-view th, #stock-items-view td { border:1px solid #ccc; padding:10px; text-align:left; }
-#stock-items-view th { background-color:#ecf0f1; }
-.low-stock { background-color:#fce7e7; color:#c0392b; font-weight:bold; }
-.btn-action { padding:5px 10px; margin-right:5px; border:none; cursor:pointer; border-radius:3px;}
-.btn-action.edit { background-color:#3498db; color:white; }
-.btn-action.delete { background-color:#e74c3c; color:white; }
-#addProductForm label { display:inline-block; width:150px; text-align:right; margin-right:10px; }
-#addProductForm input[type="text"], #addProductForm input[type="number"] { padding:8px; margin-bottom:10px; width:250px; border:1px solid #ccc; border-radius:4px; }
-#form-status { margin-top:15px; font-weight:bold; }
-</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sistem Inventori (Proxy)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<style>
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:#f4f4f4}
+  #sidebar{width:200px;height:100vh;background:#2c3e50;color:#fff;float:left;padding-top:20px}
+  .menu-item{padding:12px 15px;cursor:pointer;border-bottom:1px solid #34495e}
+  .menu-item:hover,.menu-item.active{background:#34495e}
+  #main-area{margin-left:200px;padding:28px}
+  .content-view{display:none} .content-view.active{display:block}
+  table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:10px;text-align:left}
+  th{background:#ecf0f1} .low-stock{background:#fce7e7;color:#c0392b;font-weight:700}
+  .btn-action{padding:6px 10px;border-radius:4px;border:0;margin-right:6px;cursor:pointer}
+  .edit{background:#3498db;color:#fff} .delete{background:#e74c3c;color:#fff}
+  label{display:inline-block;width:150px;text-align:right;margin-right:10px}
+  input[type="text"],input[type="number"]{padding:8px;width:250px;border:1px solid #ccc;border-radius:4px;margin-bottom:10px}
+</style>
 </head>
 <body>
+  <div id="sidebar">
+    <div style="text-align:center;padding-bottom:18px;font-weight:700">Inventory Manager</div>
+    <div class="menu-item active" id="nav-dashboard" onclick="showView('dashboard')">🏠 Dashboard</div>
+    <div class="menu-item" id="nav-stock" onclick="showView('stock')">📦 Stock Items</div>
+    <div class="menu-item" id="nav-add" onclick="showView('add')">➕ Tambah Produk</div>
+  </div>
 
-<div id="sidebar">
-<div style="text-align:center; padding-bottom:20px; font-size:1.2em; font-weight:bold;">Inventory Manager</div>
-<div id="nav-dashboard" class="menu-item active" onclick="showView('dashboard-view', this)">🏠 Dashboard</div>
-<div id="nav-stock" class="menu-item" onclick="showView('stock-view', this)">📦 Stock Items</div>
-<div id="nav-add" class="menu-item" onclick="showView('add-product-view', this)">➕ Tambah Produk</div>
-<div id="nav-reports" class="menu-item" onclick="showView('reports-view', this)">📊 Laporan</div>
-</div>
+  <div id="main-area">
+    <div id="dashboard" class="content-view active">
+      <h2>Dashboard</h2>
+      <p>Klik <strong>Stock Items</strong> untuk muatkan data dari Google Sheet.</p>
+    </div>
 
-<div id="main-area">
-<div id="dashboard-view" class="content-view active">
-<h2>🏠 Dashboard Utama</h2>
-<p>Klik <b>Stock Items</b> untuk memuatkan data dari Google Sheet anda.</p>
-</div>
+    <div id="stock" class="content-view">
+      <h2>Senarai Stok Produk</h2>
+      <button onclick="prepareAddForm()" style="float:right;margin-bottom:10px;background:#2ecc71;color:#fff;padding:8px 12px;border-radius:6px;border:0">+ Tambah Produk</button>
+      <div id="product-table-container"><p>Memuatkan data...</p></div>
+      <div style="clear:both"></div>
+    </div>
 
-<div id="stock-view" class="content-view">
-<div id="stock-items-view">
-<h2>📦 Senarai Stok Produk</h2>
-<button onclick="prepareAddForm()" style="float:right;margin-bottom:10px;background-color:#2ecc71;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;">+ Tambah Produk</button>
-<div id="product-table-container"><p>Memuatkan data inventori...</p></div>
-</div>
-</div>
-
-<div id="add-product-view" class="content-view">
-<h2 id="form-title">➕ Tambah Produk Baharu</h2>
-<form id="addProductForm" onsubmit="handleFormSubmit(event)">
-<input type="hidden" id="form-action" value="addProduct">
-<label for="sku">SKU:</label>
-<input type="text" id="sku" name="sku" required><br><br>
-<label for="name">Nama Produk:</label>
-<input type="text" id="name" name="name" required><br><br>
-<label for="quantity">Kuantiti:</label>
-<input type="number" id="quantity" name="quantity" required><br><br>
-<label for="cost">Harga Belian (RM):</label>
-<input type="number" step="0.01" id="cost" name="cost" required><br><br>
-<label for="price">Harga Jualan (RM):</label>
-<input type="number" step="0.01" id="price" name="price" required><br><br>
-<button type="submit" id="form-submit-btn" style="background-color:#2ecc71;color:white;border:none;padding:10px 15px;cursor:pointer;border-radius:4px;">Simpan Produk</button>
-<div id="form-status"></div>
-</form>
-</div>
-
-<div id="reports-view" class="content-view">
-<h2>📊 Laporan</h2>
-<p>Paparan ringkas untuk modul Laporan.</p>
-</div>
-</div>
+    <div id="add" class="content-view">
+      <h2 id="form-title">➕ Tambah Produk</h2>
+      <form id="addProductForm" onsubmit="handleFormSubmit(event)">
+        <input type="hidden" id="form-action" value="addProduct">
+        <label for="sku">SKU:</label><input id="sku" name="sku" type="text" required><br>
+        <label for="name">Nama Produk:</label><input id="name" name="name" type="text" required><br>
+        <label for="quantity">Kuantiti:</label><input id="quantity" name="quantity" type="number" min="0" required><br>
+        <label for="cost">Harga Belian (RM):</label><input id="cost" name="cost" type="number" step="0.01" min="0" required><br>
+        <label for="price">Harga Jualan (RM):</label><input id="price" name="price" type="number" step="0.01" min="0" required><br>
+        <button id="form-submit-btn" type="submit" style="background:#2ecc71;color:#fff;padding:8px 12px;border-radius:6px;border:0">Simpan</button>
+      </form>
+      <div id="form-status" style="margin-top:12px;font-weight:700"></div>
+    </div>
+  </div>
 
 <script>
-const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzOYYjxPiJprY32Kp5XbOyw-ILi9Yz3YteVM1JDGGc1cRD3kWcm2NgUqVG5IyAwWKqr5A/exec'; // UPDATE
+/* ========== CONFIG (GANTI INI) ========== */
+const PROXY_URL = "https://iventori-proxy-v2-93y6dynm3-kamaruls-projects-03596125.vercel.app"; // contoh: https://iventori-proxy-v2-xxxx.vercel.app
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv"; // contoh Google Sheets publish CSV
+/* ======================================== */
 
 let allProductData = [];
 
-function showView(viewId, menuItem){
-document.querySelectorAll('.content-view').forEach(v=>v.classList.remove('active'));
-document.getElementById(viewId).classList.add('active');
-document.querySelectorAll('.menu-item').forEach(i=>i.classList.remove('active'));
-if(menuItem) menuItem.classList.add('active');
-if(viewId==='stock-view') loadStockData();
+function showView(id){
+  document.querySelectorAll('.content-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.menu-item').forEach(m=>m.classList.remove('active'));
+  if(id==='dashboard') document.getElementById('nav-dashboard').classList.add('active');
+  if(id==='stock'){ document.getElementById('nav-stock').classList.add('active'); loadStockData(); }
+  if(id==='add') document.getElementById('nav-add').classList.add('active');
 }
 
 function loadStockData(){
-const container = document.getElementById('product-table-container');
-container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
-Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv',{ // UPDATE
-download:true, header:false, skipEmptyLines:true,
-complete: function(results){
-let data = results.data;
-allProductData = data.filter(row=>row.length>1 && row[0]);
-displayProducts(allProductData);
-},
-error: function(err){ container.innerHTML = `<p style="color:red;">❌ Ralat: ${err.message}</p>`; }
-});
+  const container = document.getElementById('product-table-container');
+  container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
+  if(!CSV_URL || CSV_URL.indexOf('http')!==0){
+    container.innerHTML = `<p style="color:darkred">SILA GANTI CSV_URL DALAM KONFIG.</p>`; return;
+  }
+  Papa.parse(CSV_URL, {
+    download:true, header:false, skipEmptyLines:true,
+    complete: function(results){
+      let data = results.data || [];
+      // assume CSV columns: SKU, Nama, Kuantiti, HargaBelian, HargaJualan (kolum 0..4)
+      allProductData = data.filter(r => r && r.length >= 5 && (r[0]||'').toString().trim() !== '');
+      displayProducts(allProductData);
+    },
+    error: function(err){
+      container.innerHTML = `<p style="color:red">❌ Ralat CSV: ${err.message}</p>`;
+    }
+  });
 }
 
 function displayProducts(data){
-const container = document.getElementById('product-table-container');
-if(!data||data.length===0){ container.innerHTML=`<p style="color:red;">❌ Tiada data produk ditemui.</p>`; return; }
-const headers=['SKU','Nama Produk','Kuantiti','Harga Belian','Harga Jualan','Tindakan'];
-let html='<table><thead><tr>';
-headers.forEach(h=>html+=`<th>${h}</th>`); html+='</tr></thead><tbody>';
-data.forEach(row=>{
-if(row.length<5) return;
-const productSku=row[0], nama=row[1], qty=row[2], cost=row[3], price=row[4];
-const currentQuantity=parseInt(qty)||0;
-const rowClass=currentQuantity<10?'low-stock':'';
-const rowString=JSON.stringify(row);
-html+=`<tr class="${rowClass}">
-<td>${productSku}</td><td>${nama}</td><td>${qty}</td><td>${cost}</td><td>${price}</td>
-<td>
-<button onclick='editItem(${rowString})' class="btn-action edit">Edit</button>
-<button onclick='deleteItem("${productSku}")' class="btn-action delete">Hapus</button>
-</td></tr>`;
-});
-html+='</tbody></table>';
-container.innerHTML=html;
+  const container = document.getElementById('product-table-container');
+  if(!data || data.length===0){ container.innerHTML = `<p style="color:darkred">Tiada data produk ditemui.</p>`; return; }
+  let html = '<table><thead><tr><th>SKU</th><th>Nama</th><th>Kuantiti</th><th>Harga Belian</th><th>Harga Jualan</th><th>Tindakan</th></tr></thead><tbody>';
+  data.forEach(row=>{
+    const sku = (row[0]||'').toString();
+    const nama = row[1]||'';
+    const qty = row[2]||0;
+    const cost = row[3]||'';
+    const price = row[4]||'';
+    const qtyNum = parseInt(qty)||0;
+    const cls = qtyNum < 10 ? 'low-stock' : '';
+    const safeRow = JSON.stringify([sku,nama,qty,cost,price]);
+    html += `<tr class="${cls}"><td>${sku}</td><td>${nama}</td><td>${qty}</td><td>${cost}</td><td>${price}</td><td>
+      <button class="btn-action edit" onclick='editItem(${safeRow})'>Edit</button>
+      <button class="btn-action delete" onclick='deleteItem("${sku}")'>Hapus</button>
+    </td></tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
-// ==================
-// ADD / EDIT / DELETE
-// ==================
+/* ========== writeProduct: panggil proxy (tidak direct ke GAS) ========== */
 async function writeProduct(action, productData){
-const statusDiv=document.getElementById('form-status');
-statusDiv.innerHTML='Menghantar data ke API...';
-document.getElementById('form-submit-btn').disabled=true;
+  const statusDiv = document.getElementById('form-status');
+  statusDiv.innerText = 'Menghantar data ke server...';
+  document.getElementById('form-submit-btn').disabled = true;
 
-const formBody=new URLSearchParams();
-formBody.append('action', action);
-if(action==='deleteProduct'){ formBody.append('sku', productData.sku); }
-else{
-formBody.append('sku', productData.sku);
-formBody.append('name', productData.name);
-formBody.append('quantity', productData.quantity);
-formBody.append('cost', productData.cost);
-formBody.append('price', productData.price);
+  try{
+    const res = await fetch(PROXY_URL + '/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, data: productData })
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    if(j.status === 'success' || j.result === 'success'){
+      statusDiv.innerHTML = `<span style="color:green">✅ ${j.message || j.msg || 'Operasi berjaya'}</span>`;
+      if(action === 'addProduct') document.getElementById('addProductForm').reset();
+      setTimeout(()=>loadStockData(),700);
+      if(action === 'editProduct') setTimeout(()=>showView('stock'),800);
+    } else {
+      statusDiv.innerHTML = `<span style="color:red">❌ ${j.message || j.msg || 'Operasi gagal'}</span>`;
+    }
+  }catch(err){
+    statusDiv.innerHTML = `<span style="color:red">❌ ${err.toString()}</span>`;
+    console.error('writeProduct error', err);
+  }finally{
+    document.getElementById('form-submit-btn').disabled = false;
+  }
 }
 
-try{
-const res=await fetch(GAS_WRITE_API_URL,{ method:'POST', body:formBody });
-if(!res.ok) throw new Error(`Ralat HTTP: ${res.status}`);
-const j=await res.json();
-if(j.status==='success'||j.result==='success'){
-const message=j.message||j.msg||'Operasi berjaya.';
-statusDiv.innerHTML=`<span style="color:green;">✅ ${message}</span>`;
-if(action==='addProduct') document.getElementById('addProductForm').reset();
-setTimeout(()=>loadStockData(),700);
-if(action==='editProduct') setTimeout(()=>showView('stock-view',document.getElementById('nav-stock')),800);
-}else{
-const errMsg=j.message||j.msg||'Ralat API: operasi gagal';
-statusDiv.innerHTML=`<span style="color:red;">❌ ${errMsg}</span>`;
-}
-}catch(err){
-statusDiv.innerHTML=`<span style="color:red;">❌ Ralat API: ${err.message}</span>`;
-console.error('writeProduct error:', err);
-}finally{ document.getElementById('form-submit-btn').disabled=false; }
-}
-
+/* ========== form handlers ========== */
 function prepareAddForm(){
-document.getElementById('form-title').innerText='➕ Tambah Produk Baharu';
-document.getElementById('addProductForm').reset();
-document.getElementById('form-action').value='addProduct';
-document.getElementById('sku').disabled=false;
-document.getElementById('form-submit-btn').innerText='Simpan Produk';
-document.getElementById('form-status').innerHTML='';
-showView('add-product-view', document.getElementById('nav-add'));
+  document.getElementById('form-title').innerText = '➕ Tambah Produk';
+  document.getElementById('addProductForm').reset();
+  document.getElementById('form-action').value = 'addProduct';
+  document.getElementById('sku').disabled = false;
+  document.getElementById('form-status').innerText = '';
+  showView('add');
 }
 
-function editItem(rowData){
-document.getElementById('form-title').innerText='✏️ Kemaskini Produk';
-document.getElementById('addProductForm').reset();
-document.getElementById('form-action').value='editProduct';
-document.getElementById('sku').value=rowData[0];
-document.getElementById('sku').disabled=true;
-document.getElementById('name').value=rowData[1];
-document.getElementById('quantity').value=rowData[2];
-document.getElementById('cost').value=rowData[3];
-document.getElementById('price').value=rowData[4];
-document.getElementById('form-submit-btn').innerText='Kemaskini Produk';
-document.getElementById('form-status').innerHTML='';
-showView('add-product-view', document.getElementById('nav-add'));
+function editItem(row){
+  // row = [sku,nama,qty,cost,price]
+  document.getElementById('form-title').innerText = '✏️ Kemaskini Produk';
+  document.getElementById('addProductForm').reset();
+  document.getElementById('form-action').value = 'editProduct';
+  document.getElementById('sku').value = row[0];
+  document.getElementById('sku').disabled = true;
+  document.getElementById('name').value = row[1];
+  document.getElementById('quantity').value = row[2];
+  document.getElementById('cost').value = row[3];
+  document.getElementById('price').value = row[4];
+  document.getElementById('form-status').innerText = '';
+  showView('add');
 }
 
 async function deleteItem(sku){
-if(!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
-await writeProduct('deleteProduct',{sku});
+  if(!confirm(`Anda pasti mahu memadam produk ${sku}?`)) return;
+  await writeProduct('deleteProduct', { sku });
 }
 
 async function handleFormSubmit(e){
-e.preventDefault();
-const f=document.getElementById('addProductForm');
-const action=document.getElementById('form-action').value;
-const productData={
-sku:f.sku.value.trim(),
-name:f.name.value,
-quantity:parseInt(f.quantity.value)||0,
-cost:parseFloat(f.cost.value)||0,
-price:parseFloat(f.price.value)||0
-};
-if(!productData.sku){ document.getElementById('form-status').innerHTML=`<span style="color:red;">❌ Sila isi SKU.</span>`; return; }
-if(!productData.name){ document.getElementById('form-status').innerHTML=`<span style="color:red;">❌ Sila isi Nama Produk.</span>`; return; }
-await writeProduct(action,productData);
+  e.preventDefault();
+  const f = document.getElementById('addProductForm');
+  const action = document.getElementById('form-action').value;
+  const productData = {
+    sku: f.sku.value.trim(),
+    name: f.name.value.trim(),
+    quantity: parseInt(f.quantity.value,10) || 0,
+    cost: parseFloat(f.cost.value) || 0,
+    price: parseFloat(f.price.value) || 0
+  };
+  if(!productData.sku){ document.getElementById('form-status').innerHTML = '<span style="color:red">Sila isi SKU.</span>'; return; }
+  await writeProduct(action, productData);
 }
 
-document.addEventListener('DOMContentLoaded',function(){
-document.getElementById('addProductForm').addEventListener('submit',handleFormSubmit);
-showView('dashboard-view',document.getElementById('nav-dashboard'));
+/* init */
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('addProductForm').addEventListener('submit', handleFormSubmit);
+  showView('dashboard');
 });
 </script>
-
 </body>
 </html>

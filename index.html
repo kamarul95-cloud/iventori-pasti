@@ -76,7 +76,7 @@ body { margin:0; font-family:sans-serif; background:#f4f4f4; }
 </div>
 
 <script>
-const GAS_WRITE_API_URL = 'PASTE_DEPLOYED_GAS_URL_HERE'; // UPDATE
+const GAS_WRITE_API_URL = 'https://script.google.com/macros/s/AKfycbzOYYjxPiJprY32Kp5XbOyw-ILi9Yz3YteVM1JDGGc1cRD3kWcm2NgUqVG5IyAwWKqr5A/exec'; // UPDATE
 
 let allProductData = [];
 
@@ -91,7 +91,7 @@ if(viewId==='stock-view') loadStockData();
 function loadStockData(){
 const container = document.getElementById('product-table-container');
 container.innerHTML = `<p>Memuat turun data dari Google Sheet...</p>`;
-Papa.parse('YOUR_PUBLISHED_CSV_URL_HERE',{ // UPDATE
+Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vTgoIbqldOdwiW1qXp_m_iECMPaxxAnyLG7knRJqiImBeId945SYpwxeJPRPnEDK4gVHXMZ9oFgW8Tj/pub?gid=0&single=true&output=csv',{ // UPDATE
 download:true, header:false, skipEmptyLines:true,
 complete: function(results){
 let data = results.data;
